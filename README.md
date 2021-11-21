@@ -2,4 +2,4 @@ The WowTable is a Vue.js wrapper for the Tabulator table that adds a lot of func
 
 The sample Vue CLI project contains samples of how to do in-table cascading drop down selections, dynamic column generation with embeded functions, and much more. To run the demo just download the source and from root directory execute 'npm install' and then 'npm run serve'.
 
-For information on how to use the WowTable, please see the Users Guide in the Wiki. https://github.com/vimstar/WowTable/wiki/Users-Guide
+For information on how to use the WowTable, please see the Users Guide in the Wiki. https://github.com/vimstar/WowTable/wiki/Users-Guide-1.3
