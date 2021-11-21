@@ -1,60 +1,71 @@
 <template>
     <div class="table">
-        <b-overlay :show="showWaitSpinner || showOverideWaitSpinner" :opacity=".50" >
-            <div ref="alertStatusMessage" class="alert alert-dismissible fade show" v-show="showAlertMessage" role="alert">
-                <span v-html="alertMessage"></span>
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="row" v-show="showAdvancedSearch">
-                <div class="col-xl-2 align-left">
-                    <b-button size="sm" @click="toggleShowFilters">{{advancedFiltersButtonText}} <span v-show="isFilterSet"><i class="fas fa-filter"></i></span></b-button>
+        <div :id="wowTableId">
+            <b-overlay :show="showWaitSpinner || showOverideWaitSpinner" :opacity=".50" >
+                <div ref="alertStatusMessage" class="alert-display align-left" v-show="showAlertMessage">
+                    <span class="alert-message" v-html="alertMessage"></span>
                 </div>
-            </div>
-            <div class="row" v-show="showAdvancedSearch && showAdvancedFilters">
-                <div class="col-xl-12">
-                    <AdvancedFilters ref="advancedFilters"
-                                     @new-search="setTableFilters"
-                                     :columnData="advancedFilterColumnData" />
+                <div class="row row-padding" v-show="showToggleColumns || showAdvancedSearch">
+                    <div class="col-xl-12 align-left">
+                        <ToggleColumns class="spacing-right" v-show="showToggleColumns"
+                                       :columnData="toggleColumnsColumnData"
+                                       :excludeColumns="excludedToggleColumns" />
+                        <b-button v-show="showAdvancedSearch" size="sm" variant="secondary" @click="toggleShowFilters">{{advancedFiltersButtonText}} <span v-show="isFilterSet"><i class="fas fa-filter"></i></span></b-button>
+                    </div>
                 </div>
-            </div>
-            <div class="row" style="min-height: 60px;">
-                <div class="col-xl-6 align-left">
-                    <ToggleColumns v-show="showToggleColumns" 
-                                   :columnData="toggleColumnsColumnData" 
-                                   :excludeColumns="excludedToggleColumns" />
-                    <b-button variant="warning" v-show="isDataEdited" @click="cancelUpdatedData">Cancel</b-button>
-                    <b-button variant="primary" v-show="isDataEdited" @click="handleSaveDataClick">Save Changes</b-button>
+                <div class="row" v-show="showAdvancedSearch && showAdvancedFilters">
+                    <div class="col-xl-12">
+                        <AdvancedFilters ref="advancedFilters"
+                                         @new-search="setTableFilters"
+                                         :columnData="advancedFilterColumnData" />
+                    </div>
                 </div>
-                <div class="col-xl-6 align-right">
-                    <b-button variant="primary" v-show="showAddNew" @click="addNewClicked">Add New</b-button>
+                <div class="row row-adjustment" v-show="(showAddNew || !doSingleRowEditing) && !doNoEditing">
+                    <div v-show="!doSingleRowEditing" class="col-xl-6 align-left" style="min-height: 52px;">
+                        <b-button class = "spacing-right" variant="warning" v-show="isDataEdited" size="sm" @click="cancelUpdatedData">Cancel</b-button>
+                        <b-button variant="success" v-show="isDataEdited" size="sm" @click="handleSaveDataClick">Save Changes</b-button>
+                    </div>
+                    <div class="col-xl-6 align-right" v-show="showAddNew">
+                        <b-button variant="primary" v-show="showAddNew" size="sm" @click="addNewClicked">Add New</b-button>
+                    </div>
                 </div>
-            </div>
-            <div class="row">
-                <div class="col-xl-12">
-                    <div id="table-component"></div>
+                <div class="row row-padding row-adjustment top-padding">
+                    <div class="col-xl-12">
+                        <div :id="tableId" :style="{'font-size': tableFontSize}"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="row">
-                <div class="col-xl-12 align-right">
-                    <input ref="excel-upload-input" class="excel-upload-input" type="file" accept=".xlsx, .xls" @change="handleExcelUploadInput">
-                    <b-button variant="primary" v-show="showImportExcel" @click="handleImportExcelClick">Import Excel</b-button>
-                    <b-button variant="primary" v-show="showExportExcel" @click="exportExcel()">Export Excel</b-button>
+                <div class="row row-padding row-adjustment">
+                    <div class="col-xl-4 align-left top-padding" v-show="!hideRowCount">
+                        <span style="white-space: pre;">{{rowCount}}  <i v-show="doRemotePagination" class="fas fa-globe" style="color: Dodgerblue;"></i></span>
+                    </div>
+                    <div class="col-xl-8 align-right top-padding">
+                        <input ref="excel-upload-input" class="excel-upload-input" type="file" accept=".xlsx, .xls" @change="handleExcelUploadInput">
+                        <b-button class = "spacing-right" variant="primary" v-show="showImportExcel" size="sm" @click="handleImportExcelClick">Import Excel</b-button>
+                        <b-button variant="primary" v-show="showExportExcel" size="sm" @click="exportExcel()">Export Excel</b-button>
+                    </div>
                 </div>
-            </div>
-        </b-overlay>
+            </b-overlay>
+        </div>
     </div>
 </template>
 
 <script>
+    const WowTableVersion = "1.3_2021-10-1";
+
     import Tabulator from "tabulator-tables";
     import axios from "axios";
     import xlsx from "xlsx";
     import AdvancedFilters from "./AdvancedFilters.vue";
     import ToggleColumns from "./ToggleColumns.vue";
 
-    const WowTableVersion = "1.2_2021-7-9";
+    //const standardTheme = () => import("tabulator-tables/dist/css/tabulator.min.css");
+    //const simpleTheme = () => import("tabulator-tables/dist/css/tabulator_simple.min.css");
+    //const midnightTheme = () => import("tabulator-tables/dist/css/tabulator_midnight.min.css");
+    //const modernTheme = () => import("tabulator-tables/dist/css/tabulator_modern.min.css");
+    //const bootstrapTheme = () => import("tabulator-tables/dist/css/bootstrap/tabulator_bootstrap4.min.css");
+    //const semanticTheme = () => import("tabulator-tables/dist/css/semantic-ui/tabulator_semantic-ui.min.css");
+    //const bulmaTheme = () => import("tabulator-tables/dist/css/bulma/tabulator_bulma.min.css");
+    //const materializeTheme = () => import("tabulator-tables/dist/css/materialize/tabulator_materialize.min.css");
 
     export default {
         name: "WowTable",
@@ -69,30 +80,47 @@
         data() {
             return {
                 table: null,
+                tableId: this.createElementId(),
+                wowTableId: this.createElementId(),
                 columnData: this.tableOptions.columnData,
                 columnDataApi: this.tableOptions.columnDataApi,
                 rowData: this.tableOptions.rowData,
                 rowDataApi: this.tableOptions.rowDataApi,
-                rowKey: this.tableOptions.rowKey || "id",
+                rowKey: this.tableOptions.rowKey || "Id",
                 groupRowBy: this.tableOptions.groupRowBy,
+                groupHeaderTitle: this.tableOptions.groupHeaderTitle || [],
                 groupStartOpenCount: this.tableOptions.groupStartOpenCount || 0,
+                initialTableSort: this.tableOptions.initialTableSort,
                 updateDataApi: this.tableOptions.updateDataApi,
                 addDataApi: this.tableOptions.addDataApi,
                 deleteDataApi: this.tableOptions.deleteDataApi,
                 deleteValidationApi: this.tableOptions.deleteValidationApi,
+                doDeleteValidation: this.tableOptions.doDeleteValidation,
                 promptInfoColumn: this.tableOptions.promptInfoColumn,
                 showAdvancedSearch: this.tableOptions.showAdvancedSearch,
                 showAddNew: this.tableOptions.showAddNew,
                 showDelete: this.tableOptions.showDelete,
-                doDeleteValidation: this.tableOptions.doDeleteValidation,
                 doAddNewInTable: this.tableOptions.doAddNewInTable,
                 doSingleRowEditing: this.tableOptions.doSingleRowEditing,
+                showEditOnLeft: this.tableOptions.showEditOnLeft || true,
+                doNoEditing: this.tableOptions.doNoEditing,
+                inTableEditing: this.tableOptions.inTableEditing,
                 showImportExcel: this.tableOptions.showImportExcel,
                 importExcelValidation: this.tableOptions.importExcelValidation || [],
                 showExportExcel: this.tableOptions.showExportExcel,
                 exportExcelFileName: this.tableOptions.exportExcelFileName || "data",
                 showToggleColumns: this.tableOptions.showToggleColumns,
                 excludedToggleColumns: this.tableOptions.excludedToggleColumns,
+                disablePagination: this.tableOptions.disablePagination,
+                paginationSize: this.tableOptions.paginationSize || 100,
+                paginationSizeSelector: this.tableOptions.paginationSizeSelector || [50, 100, 250, 500, 1000],
+                doRemotePagination: this.tableOptions.doRemotePagination,
+                remotePaginationApi: this.tableOptions.remotePaginationApi,
+                tableLayout: this.tableOptions.tableLayout || "fitData",
+                tableTheme: this.tableOptions.tableTheme || "standard",
+                tableFontSize: this.tableOptions.tableFontSize || "12px",
+                wowTableClasses: this.tableOptions.wowTableClasses || [],
+                hideRowCount: this.tableOptions.hideRowCount,
                 toggleColumnsColumnData: [],
                 advancedFilterColumnData: [],
                 showAdvancedFilters: false,
@@ -106,37 +134,98 @@
                 showWaitSpinner: true,
                 showOverideWaitSpinner: false,
                 showAlertMessage: false,
-                alertMessage: ""
+                alertMessage: "",
+                rowCount: "Rows:  0  -  0  of  0",
+                isInitialLoad: true
             };
         },
-        computed: {},
-        watch: {},
+        computed: {
+            tableClasses() {
+                if (this.tableOptions.tableClasses)
+                    return this.tableOptions.tableClasses;
+                var topRows = 0;
+                if (this.tableOptions.showToggleColumns || this.tableOptions.showAdvancedSearch)
+                    topRows += 1;
+                if ((this.tableOptions.showAddNew || !this.tableOptions.doSingleRowEditing) && !this.tableOptions.doNoEditing)
+                    topRows += 1;
+                return [`sizing-toprow${topRows}`];
+            },
+        },
         async mounted() {
+            //this.applyTableTheme();
             await this.setupTable();
         },
         methods: {
+            //applyTableTheme() {
+            //    switch (this.tableTheme) {
+            //        case "standard":
+            //            standardTheme();
+            //            break;
+            //        case "simple":
+            //            simpleTheme();
+            //            break;
+            //        case "midnight":
+            //            midnightTheme();
+            //            break;
+            //        case "modern":
+            //            modernTheme();
+            //            break;
+            //        case "bootstrap":
+            //            bootstrapTheme();
+            //            break;
+            //        case "semantic":
+            //            semanticTheme();
+            //            break;
+            //        case "bulma":
+            //            bulmaTheme();
+            //            break;
+            //        case "materialize":
+            //            materializeTheme();
+            //            break;
+            //        default:
+            //            // Dont apply any theme
+            //    }
+            //},
             async setupTable() {
                 var that = this;
                 var autoColumns = false;
                 if (typeof this.columnData == "undefined" && this.columnDataApi == "undefined") {
                     autoColumns = true;
                 }
-                console.log("groupStartOpenCount = " + this.groupStartOpenCount);
-                this.table = new Tabulator("#table-component", {
-                    pagination: "local",
-                    paginationSizeSelector: [15, 30, 60, 100],
+                
+                this.table = new Tabulator(`#${this.tableId}`, {
+                    layout: this.tableLayout,
+                    pagination: this.doRemotePagination ? "remote" : this.disablePagination ? false : "local",
+                    paginationSize: this.paginationSize,
+                    paginationSizeSelector: this.paginationSizeSelector,
+                    ajaxURL: this.doRemotePagination ? this.remotePaginationApi : null,
+                    ajaxSorting: this.doRemotePagination ? true : false,
+                    ajaxFiltering: this.doRemotePagination ? true : false,
+                    ajaxURLGenerator: this.doRemotePagination ? this.ajaxURLGenerator : null,
                     cellEdited: this.cellEdited,
                     dataLoaded: this.tableDataLoaded,
+                    renderComplete: this.setPageCount,
                     autoColumns: autoColumns, //only do autoColumns if no column information is provided
                     groupBy: this.groupRowBy,
+                    groupHeader: function (value, count, data, group) {
+                        var index = that.groupRowBy.indexOf(group.getField());
+                        return (that.groupHeaderTitle[index] || "") + "<span style='color:black; margin-left:10px;'>" + value + "</span>" +
+                            "<span style='color:#1E90FF; margin-left:12px;'>(" + count + " "+ (count > 1 ? "items":"item") + ")</span>";
+                    },
                     groupStartOpen: function (value, count, data, group) { return count >= that.groupStartOpenCount },
                     downloadConfig: { columnGroups: false, rowGroups: false }
                 });
+
+                document.getElementById(this.tableId).classList.add(...this.tableClasses);
+                document.getElementById(this.wowTableId).classList.add(...this.wowTableClasses);
                 await this.setTableColumns();
                 await this.setTableData();
             },
+            ajaxURLGenerator(url, config, params) {
+                return url + "?params=" + encodeURI(JSON.stringify(params));
+            },
             async setTableColumns() {
-                if (typeof this.columnData == "undefined" && typeof this.columnDataApi == "undefined")
+                if (typeof this.columnData == "undefined" && typeof this.columnDataApi == "undefined" )
                     return;
 
                 this.showWaitSpinner = true;
@@ -154,9 +243,29 @@
                 }
                 this.addEditColumns();
                 this.table.setColumns(this.columnData); // set column data
-                this.advancedFilterColumnData = (this.showAdvancedSearch) ? this.columnData : [];
+                this.advancedFilterColumnData = (this.showAdvancedSearch) ? this.flattenColumnData() : [];
                 this.toggleColumnsColumnData = this.table.getColumns();
                 this.showWaitSpinner = false;
+            },
+            flattenColumnData(){
+                // Removes 1st and 2nd level group columns to create list of selectable columns without being grouped.
+                var flattenedColumns = [];
+                for (var i = 0; i < this.columnData.length; i++) {
+                    if (this.columnData[i]["columns"]) {
+                        for (var j = 0; j < this.columnData[i]["columns"].length; j++) {
+                            if (this.columnData[i]["columns"][j]["columns"]) {
+                                for (var k = 0; k < this.columnData[i]["columns"][j]["columns"].length; k++) {
+                                    flattenedColumns.push(this.columnData[i]["columns"][j]["columns"][k]);
+                                }
+                            } else {
+                                flattenedColumns.push(this.columnData[i]["columns"][j]);
+                            }
+                        }
+                    } else {
+                        flattenedColumns.push(this.columnData[i]);
+                    }
+                }
+                return flattenedColumns;
             },
             addEditColumns() {
                 // Add editable attribute function to colums. This is to prevent table editing when adding a new row or doing single row editing.
@@ -171,23 +280,41 @@
                         }
                     }
                 }
-
+                var editRowButtons = [];
                 if (this.doSingleRowEditing) {
-                    var editColumn = [{ field: "EditButton", formatter: this.formatter_EditButton, cellClick: this.cellClick_EditButton, headerSort: false, align: "center", resizable: false, download: false }];
-                    this.columnData = this.columnData.concat(editColumn);
+                    var editColumn = [{ field: "EditButton", formatter: this.formatter_EditButton, cellClick: this.cellClick_EditButton, headerSort: false, headerFilter: false, align: "center", resizable: false, download: false, width: 70 }];
+                    editRowButtons = editRowButtons.concat(editColumn);
+                    //this.columnData = this.columnData.concat(editColumn);
                 }
                 if (this.doSingleRowEditing || this.doAddNewInTable) {
-                    var saveCancelColumns = [{ field: "CancelButton", formatter: this.formatter_CancelButton, cellClick: this.cellClick_CancelButton, headerSort: false, align: "center", resizable: false, visible: false, download: false },
-                        { field: "SaveButton", formatter: this.formatter_SaveButton, cellClick: this.cellClick_SaveButton, headerSort: false, align: "center", resizable: false, visible: false, download: false }];
-                    this.columnData = this.columnData.concat(saveCancelColumns);
+                    var saveCancelColumns = [{ field: "CancelButton", formatter: this.formatter_CancelButton, cellClick: this.cellClick_CancelButton, headerSort: false, headerFilter: false, align: "center", resizable: false, visible: false, download: false, width: 70 },
+                        { field: "SaveButton", formatter: this.formatter_SaveButton, cellClick: this.cellClick_SaveButton, headerSort: false, headerFilter: false, align: "center", resizable: false, visible: false, download: false, width: 70 }];
+                    editRowButtons = editRowButtons.concat(saveCancelColumns);
+                    //this.columnData = this.columnData.concat(saveCancelColumns);
                 }
                 if (this.showDelete) {
-                    var deleteColumn = [{ field: "DeleteButton", formatter: this.formatter_DeleteButton, cellClick: this.cellClick_DeleteButton, headerSort: false, align: "center", resizable: false, download: false }];
-                    this.columnData = this.columnData.concat(deleteColumn);
+                    var deleteColumn = [{ field: "DeleteButton", formatter: this.formatter_DeleteButton, cellClick: this.cellClick_DeleteButton, headerSort: false, headerFilter: false, align: "center", resizable: false, download: false, width: 70 }];
+                    editRowButtons = editRowButtons.concat(deleteColumn);
+                    //this.columnData = this.columnData.concat(deleteColumn);
+                }
+                
+                if ((this.doSingleRowEditing || this.doAddNewInTable || this.showDelete) && !this.doNoEditing) {
+                    if (this.showEditOnLeft)
+                        this.columnData = editRowButtons.concat(this.columnData);
+                    else
+                        this.columnData = this.columnData.concat(editRowButtons)
                 }
             },
             async setTableData(refreshData = false) {
-                if (typeof this.rowData == "undefined" && typeof this.rowDataApi == "undefined")
+                if(this.inTableEditing && !this.isInitialLoad)
+                    return;
+                
+                if (this.doRemotePagination) {
+                    this.loadData(null, refreshData);
+                    return;
+                }
+
+                if ((typeof this.rowData == "undefined" && typeof this.rowDataApi == "undefined") || this.doRemotePagination)
                     return;
 
                 this.showWaitSpinner = true;
@@ -204,12 +331,16 @@
                         });
                 }
                 this.loadData(this.rowData, refreshData);
+                if (this.initialTableSort)
+                    this.table.setSort(this.initialTableSort);
+                
+                this.isInitialLoad = false;
             },
             loadData(data, refreshData = false) {
                 if (refreshData)
-                    this.table.replaceData(data);
+                    this.doRemotePagination == true ?  this.table.replaceData() : this.table.replaceData(data);
                 else
-                    this.table.setData(data);
+                    this.doRemotePagination == true ? this.table.setData() : this.table.setData(data);
             },
             transformStringToFunction(jsonInput) {
                 var returnData = jsonInput.reduce((columns, col) => {
@@ -227,7 +358,39 @@
                 this.dataClone = this.table == null ? [] : this.table.getData();
                 this.editedData = [];
                 this.isDataEdited = false;
+                this.setPageCount();
+                this.$emit('data-updated');
                 this.showWaitSpinner = false;
+            },
+            setPageCount() {
+                if (this.table == null)
+                {
+                    this.rowCount = "Rows:  0  -  0  of  0";
+                    return;
+                }
+
+                var initialRows = (this.table.getPage() - 1) * this.table.getPageSize();
+                var showAprox = false;
+                var currentRows;
+                var total;
+
+                if (this.doRemotePagination) {
+                    currentRows = initialRows + this.table.getDataCount("active");
+                    if (this.table.getPage() == this.table.getPageMax()) {
+                        total = currentRows;
+                    } else {
+                        total = this.table.getPageMax() * this.table.getPageSize();
+                        showAprox = true;
+                    }
+                } else {
+                    total = this.table.getDataCount("active");
+                    if (this.table.getPage() == this.table.getPageMax())
+                        currentRows = total;
+                    else
+                        currentRows = this.table.getPage() * this.table.getPageSize();
+                }
+
+                this.rowCount = `Rows:  ${currentRows == 0 ? 0 : (initialRows + 1)}  -  ${currentRows}  of ${showAprox ? "aprox " : ""} ${total}`;
             },
             isRowSelected(cell) {
                 if (this.doSingleRowEditing || (this.doAddNewInTable && this.isEditingNew))
@@ -236,7 +399,7 @@
                     return true;
             },
             formatter_EditButton(cell, formatterParams, onRendered) {
-                return "<button type='button' class='btn btn-sm btn-outline-secondary'>Edit</button>";
+                return "<button type='button' class='btn btn-sm btn-secondary'>Edit</button>";
             },
             formatter_CancelButton(cell, formatterParams, onRendered) {
                 if (cell.getRow().isSelected())
@@ -271,6 +434,7 @@
                     currentTable.hideColumn("DeleteButton");
                     currentTable.showColumn("CancelButton");
                     currentTable.showColumn("SaveButton");
+                    this.table.redraw();
                     this.isEditing = true;
                 }
             },
@@ -312,6 +476,7 @@
                         return;
                     this.isEditingNew = false;
                     this.dataClone = this.table.getData();
+                    this.$emit('data-updated');
                 } else {
                     this.editedData = [];
                     this.editedData.push(rowData);
@@ -369,6 +534,7 @@
                 currentTable.hideColumn("CancelButton");
                 currentTable.hideColumn("SaveButton");
                 currentRow.reformat();
+                this.table.redraw();
                 this.isEditing = false;
             },
             cellEdited(editedCell) {
@@ -398,11 +564,13 @@
             async saveUpdatedData() {
                 if (!await this.validateData(this.editedData))
                     return false;
+                
+                if (this.inTableEditing)
+                    return true;
                     
                 this.showWaitSpinner = true;
                 var success = false;
                 if (typeof this.updateDataApi == "string") {
-                    console.log(JSON.stringify(this.editedData));
                     await axios.post(this.updateDataApi, this.editedData, {
                             headers: {
                             "content-type": "application/json",
@@ -413,6 +581,7 @@
                             this.editedData = [];
                             this.isDataEdited = false;
                             success = true;
+                            this.$emit('data-updated');
                         })
                         .catch(err => {
                             if (err.response.status === 555)
@@ -470,6 +639,13 @@
                 if (!await this.validateData(data))
                     return false;
 
+                // This is primarily used for demos
+                if (this.inTableEditing) {
+                    this.rowData.push(data);
+                    this.displaySuccessMessage("New item has been saved.");
+                    return true;
+                }
+
                 if (typeof this.addDataApi == "string") {
                     this.showWaitSpinner = true;
                     var success = false;
@@ -523,6 +699,9 @@
                 }
             },
             async deleteData(data, reloadTable = false) {
+                if (this.inTableEditing)
+                    return true;
+
                 this.showWaitSpinner = true;
                 var success = false;
                 if (typeof this.deleteDataApi == "string") {
@@ -563,7 +742,9 @@
             exportExcel(fileName = null) {
                 if (fileName == null)
                     fileName = this.exportExcelFileName;
-                this.table.download("xlsx", `${fileName}.xlsx`, { sheetName: "Data" });
+
+                fileName += "_" + this.getDateTimeStamp() + ".xlsx";
+                this.table.download("xlsx", fileName, { sheetName: "Data" });
             },
             handleImportExcelClick() {
                 if (this.isDataEdited) {
@@ -617,13 +798,16 @@
                     var sheetRows = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                     // Check if the spreadsheet contains the required columns
                     var valid = true;
+                    var errorMsg = "";
                     if (sheetRows == null || sheetRows.length <= 0) {
+                        errorMsg = "The selected Excel file is not valid and cannot be parsed. Please select a valid file and try again.";
                         valid = false;
                     } else if (Array.isArray(this.importExcelValidation)) {
                         for (var i = 0; i < this.importExcelValidation.length; i++) {
                             var row = sheetRows[0];
                             var hasProperty = {}.hasOwnProperty.call(row, this.importExcelValidation[i]);
                             if (!hasProperty) {
+                                errorMsg = `The selected Excel file is missing required columns. Please ensure the following columns exist and try again: ${this.importExcelValidation.join(", ")}`
                                 valid = false;
                                 break;
                             }
@@ -631,8 +815,7 @@
                     }
 
                     if (!valid) {
-                        const message = "The selected Excel file is not valid. Please select a valid file and try again.";
-                        this.displayErrorDialog("Invalid Excel File", message);
+                        this.displayErrorDialog("Invalid Excel File", errorMsg);
                     } else {
                         //this.editedData = JSON.parse(JSON.stringify(sheetRows));
                         this.editedData = sheetRows;
@@ -652,6 +835,16 @@
                 finally {
                     this.showWaitSpinner = false;
                 }
+            },
+            getDateTimeStamp() {
+                var date = new Date();
+                var timeStamp = date.getFullYear() + this.padNumber((date.getMonth() + 1), 2) + this.padNumber(date.getDate(), 2) + 
+                    this.padNumber(date.getHours(), 2) + this.padNumber(date.getMinutes(), 2) + this.padNumber(date.getSeconds(), 2)
+                return timeStamp;
+            },
+            padNumber (num, size) {
+                var padded = "0000000000" + num;
+                return padded.substr(padded.length - size);
             },
             setTableFilters(filters) {
                 if (filters == null || filters.length <= 0)
@@ -700,60 +893,232 @@
                     // An error occurred
                 });
             },
+            createElementId() {
+                var rndInt = Math.floor(Math.random() * 9999999) + 1;
+                return "element-" + rndInt;
+            }
         }
     }
 </script>
 
 <style lang="scss">
-    @import "~tabulator-tables/dist/css/tabulator.min";
+
+    @import "~tabulator-tables/dist/css/tabulator.css";
+    /*@import "~tabulator-tables/dist/css/tabulator_simple.min.css";*/
+    /*@import "~tabulator-tables/dist/css/tabulator_modern.min.css";*/
+    /*@import "~tabulator-tables/dist/css/semantic-ui/tabulator_semantic-ui.min.css";*/
+    /*@import "~tabulator-tables/dist/css/bootstrap/tabulator_bootstrap4.min.css";*/
+    /*@import "~tabulator-tables/dist/css/bulma/tabulator_bulma.min.css";*/
+    /*@import "~tabulator-tables/dist/css/materialize/tabulator_materialize.min.css";*/
+    /*@import "~tabulator-tables/dist/css/tabulator_midnight.min.css";*/
+    
     /*$fa-font-path: '~font-awesome/fonts/';
     @import '~font-awesome/scss/font-awesome.scss';*/
 
+    /*.tabulator-row {
+        border-bottom: 1px solid rgb(150, 150, 150);
+
+        &.tabulator-selectable:hover {
+            border-bottom: 2px solid rgb(120, 120, 150);
+            border-top: 2px solid rgb(120, 120, 150);
+            background-color: rgb(215, 215, 225);
+            margin-top: -2px;
+        }
+
+        &.tabulator-selected {
+            border-bottom: 2px solid rgb(40, 40, 40);
+            border-top: 2px solid rgb(40, 40, 40);
+            background-color: rgb(255, 255, 220);
+            margin-top: -2px;
+        }
+
+        &.tabulator-selected:hover {
+            border-bottom: 2px solid rgb(40, 40, 40);
+            border-top: 2px solid rgb(40, 40, 40);
+            background-color: rgb(255, 255, 220);
+            margin-top: -1px;
+        }
+    }*/
+
     @mixin table-sizing($breakpoint) {
+        @if($breakpoint == level9) {
+            @media(max-height: 1390px) {
+                @content
+            }
+        }
+        @if($breakpoint == level8) {
+            @media(max-height: 1265px) {
+                @content
+            }
+        }
+        @if($breakpoint == level7) {
+            @media(max-height: 1140px) {
+                @content
+            }
+        }
+        @if($breakpoint == level6) {
+            @media(max-height: 1055px) {
+                @content
+            }
+        }
         @if($breakpoint == level5) {
-            @media(max-height: 1152px) {
+            @media(max-height: 970px) {
                 @content
             }
         }
         @if($breakpoint == level4) {
-            @media(max-height: 1007px) {
+            @media(max-height: 885px) {
                 @content
             }
         }
         @if($breakpoint == level3) {
-            @media(max-height: 895px) {
+            @media(max-height: 815px) {
                 @content
             }
         }
         @if($breakpoint == level2) {
-            @media(max-height: 790px) {
+            @media(max-height: 755px) {
                 @content
             }
         }
         @if($breakpoint == level1) {
-            @media(max-height: 707px) {
+            @media(max-height: 700px) {
                 @content
             }
         }
     }
 
-    #table-component {
-        height: 65vh;
-        @include table-sizing(level5) {
-            height: 60vh;
+    .sizing-toprow3 {
+        height: 72vh;
+        @include table-sizing(level9) {
+            height: 68vh;
         }
-        @include table-sizing(level4) {
+        @include table-sizing(level8) {
+            height: 65vh;
+        }
+        @include table-sizing(level7) {
+            height: 62vh;
+        }
+        @include table-sizing(level6) {
+            height: 59vh;
+        }
+        @include table-sizing(level5) {
             height: 55vh;
         }
+        @include table-sizing(level4) {
+            height: 51vh;
+        }
         @include table-sizing(level3) {
-            height: 49vh;
+            height: 47vh;
         }
         @include table-sizing(level2) {
             height: 43vh;
         }
         @include table-sizing(level1) {
-            height: 36vh;
+            height: 39vh;
         }
+    }
+
+    .sizing-toprow2 {
+        height: 77vh;
+        @include table-sizing(level9) {
+            height: 73vh;
+        }
+        @include table-sizing(level8) {
+            height: 70vh;
+        }
+        @include table-sizing(level7) {
+            height: 67vh;
+        }
+        @include table-sizing(level6) {
+            height: 64vh;
+        }
+        @include table-sizing(level5) {
+            height: 61vh;
+        }
+        @include table-sizing(level4) {
+            height: 58vh;
+        }
+        @include table-sizing(level3) {
+            height: 55vh;
+        }
+        @include table-sizing(level2) {
+            height: 51vh;
+        }
+        @include table-sizing(level1) {
+            height: 48vh;
+        }
+    }
+
+    .sizing-toprow1 {
+        height: 79vh;
+        @include table-sizing(level9) {
+            height: 76vh;
+        }
+        @include table-sizing(level8) {
+            height: 74vh;
+        }
+        @include table-sizing(level7) {
+            height: 72vh;
+        }
+        @include table-sizing(level6) {
+            height: 69vh;
+        }
+        @include table-sizing(level5) {
+            height: 66vh;
+        }
+        @include table-sizing(level4) {
+            height: 63vh;
+        }
+        @include table-sizing(level3) {
+            height: 60vh;
+        }
+        @include table-sizing(level2) {
+            height: 57vh;
+        }
+        @include table-sizing(level1) {
+            height: 54vh;
+        }
+    }
+
+    .sizing-toprow0 {
+        height: 83vh;
+
+        @include table-sizing(level9) {
+            height: 80vh;
+        }
+        @include table-sizing(level8) {
+            height: 78vh;
+        }
+        @include table-sizing(level7) {
+            height: 76vh;
+        }
+        @include table-sizing(level6) {
+            height: 74vh;
+        }
+        @include table-sizing(level5) {
+            height: 71vh;
+        }
+        @include table-sizing(level4) {
+            height: 69vh;
+        }
+        @include table-sizing(level3) {
+            height: 66vh;
+        }
+        @include table-sizing(level2) {
+            height: 63vh;
+        }
+        @include table-sizing(level1) {
+            height: 60vh;
+        }
+    }
+
+    input[type=checkbox] {
+        cursor: default;
+    }
+
+    input:read-only[type=checkbox] {
+        cursor: default;
     }
 
     .align-right {
@@ -774,4 +1139,43 @@
         display: none;
         z-index: -9999;
     }
+
+    // .row-padding {
+    //     padding: 0px 0px 0px 0px;
+    // }
+
+    .spacing-right {
+        margin-left :0px;
+        margin-right :7px;
+    }
+
+    .spacing-left {
+        margin-left :5px;
+        margin-right :0px;
+    }
+
+    .alert-display {
+        display: block;
+        position: absolute;
+        overflow: visible;
+        border: 1px solid rgb(0, 0, 0);
+        z-index: 1;
+        width: 100%;
+        min-height: 40px;
+        border-radius: 7px;
+    }
+
+    .alert-message {
+        height: 100%;
+        vertical-align: middle;
+    }
+
+    .top-padding {
+        padding-top: 10px;
+    }
+
+    //.row-adjustment {
+    //    margin: -15px;
+    //}
+
 </style>

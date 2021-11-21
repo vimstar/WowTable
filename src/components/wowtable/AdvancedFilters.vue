@@ -1,25 +1,23 @@
 <template>
-    <b-card>
+    <b-card bg-variant="light">
         <div class="advanced-filters">
             <div id="filter-components">
-                <AdvancedFilterBar
-                    v-for="filterBar in filterBars"
-                    :key="filterBar.uniqueId"
-                    :uniqueId="filterBar"
-                    :filterIndex="filterBar.filterIndex"
-                    :filterColumnOptions="filterBar.filterColumnOptions"
-                    :ref="filterBar"
-                    @delete-filter="deleteFilter"
-                    @keyup-filter="doSearchClicked"
-                    />
+                <AdvancedFilterBar v-for="filterBar in filterBars"
+                                   :key="filterBar.uniqueId"
+                                   :uniqueId="filterBar"
+                                   :filterIndex="filterBar.filterIndex"
+                                   :filterColumnOptions="filterBar.filterColumnOptions"
+                                   :ref="filterBar"
+                                   @delete-filter="deleteFilter"
+                                   @keyup-filter="doSearchClicked" />
             </div>
-            <b-row>
+            <b-row class="filter-button-padding">
                 <b-col cols="6" class="align-left">
-                    <b-button size="sm" @click="addFilterClicked">Add Filter</b-button>
-                    <b-button size="sm" @click="doSearchClicked">Search</b-button>
+                    <b-button class="spacing-right" size="sm" @click="addFilterClicked" variant="primary">Add Filter</b-button>
+                    <b-button size="sm" @click="doSearchClicked" variant="outline-success">Search</b-button>
                 </b-col>
                 <b-col cols="6" class="align-right">
-                    <b-button size="sm" variant="outline-warning" @click="clearAllFilters">Clear All Filters</b-button>
+                    <b-button size="sm" variant="outline-danger" @click="clearAllFilters">Clear All Filters</b-button>
                 </b-col>
             </b-row>
         </div>
@@ -41,7 +39,7 @@
         computed: {
             formattedColumnData() {
                 return this.columnData.reduce((colData, col) => {
-                    if (col.visible == false) {
+                    if (col.visible == false || col.headerFilter == false) {
                         return colData;
                     } else {
                         colData.push(col);
@@ -51,7 +49,7 @@
             },
         },
         watch: {},
-        mounted() {},
+        mounted() { },
         methods: {
             addFilterClicked() {
                 this.addFilter();
@@ -69,7 +67,7 @@
             },
             async deleteFilter(_id) {
                 this.filterBars.splice(this.filterBars.indexOf(_id), 1);
-                this.filterBars.forEach((item, index) => {item.filterIndex = index;});
+                this.filterBars.forEach((item, index) => { item.filterIndex = index; });
                 await this.$nextTick();
                 this.$emit("new-search", this.currentFilterSearch());
             },
@@ -110,17 +108,7 @@
 </script>
 
 <style lang="scss">
-    .align-right {
-        display: block;
-        margin-left: auto;
-        margin-right: 0;
-        text-align: right;
-    }
-
-    .align-left {
-        display: block;
-        margin-left: 0;
-        margin-right: auto;
-        text-align: left;
+    .filter-button-padding {
+        padding: 15px 0px 0px 0px;
     }
 </style>

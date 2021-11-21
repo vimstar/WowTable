@@ -1,9 +1,9 @@
 ﻿<template>
     <div class="dropdown">
-        <b-button size="sm" @click="toggleList" block><i class="fas fa-columns"></i></b-button>
+        <b-button size="sm" @click="toggleList" block variant="secondary"><i class="fas fa-columns"></i></b-button>
         <div ref="columnDropdown" class="dropdown-content" @mouseleave="toggleList">
-                <b-button class="dropdown-button" size="sm" @click="toggleAllColumns(true)" squared variant="outline-secondary">Show All</b-button><!-- The comment between buttons is needed to remove white space since float is not working
-                 --><b-button class="dropdown-button" size="sm" @click="toggleAllColumns(false)" squared variant="outline-secondary">Hide All</b-button>
+            <b-button class="dropdown-button" size="sm" @click="toggleAllColumns(true)" squared variant="outline-secondary">Show All</b-button><!-- The comment between buttons is needed to remove white space since float is not working
+            --><b-button class="dropdown-button" size="sm" @click="toggleAllColumns(false)" squared variant="outline-secondary">Hide All</b-button>
             <b-form-checkbox v-for="col in formattedColumnData" :key="col.getField()" size="sm" @change="toggleColumn(col)" :checked="col.isVisible()">{{col.getDefinition().title}}</b-form-checkbox>
         </div>
     </div>
@@ -25,10 +25,10 @@
         computed: {
             formattedColumnData() {
                 return this.columnData.reduce((colData, col) => {
-                    if(!col.getDefinition().title){
-                         return colData;
-                    } else if(Array.isArray(this.excludeColumns)) {
-                        if(this.excludeColumns.includes(col.getField())){
+                    if (!col.getDefinition().title) {
+                        return colData;
+                    } else if (Array.isArray(this.excludeColumns)) {
+                        if (this.excludeColumns.includes(col.getField())) {
                             return colData;
                         } else {
                             colData.push(col);
@@ -42,7 +42,7 @@
             }
         },
         watch: {},
-        mounted() {},
+        mounted() { },
         methods: {
             toggleList() {
                 this.$refs["columnDropdown"].classList.toggle("show");
