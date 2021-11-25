@@ -50,7 +50,7 @@
 </template>
 
 <script>
-    const WowTableVersion = "1.3_2021-10-1";
+    const WowTableVersion = "1.3_2021-11-21";
 
     import Tabulator from "tabulator-tables";
     import axios from "axios";
